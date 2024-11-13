@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mashable Title Aggregrator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            color: black;
+        }
+
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2em;
+            padding-bottom: 15px;
+            border-bottom: 2px solid black;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .article-list {
+            list-style: none;
+        }
+
+        .article-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .article-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .article-link {
+            color: black;
+            text-decoration: none;
+            font-size: 1.1em;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .article-link:hover {
+            text-decoration: underline;
+        }
+
+        .article-date {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+
+        #error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .refresh-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: black;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-button:hover {
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mashable Articles</h1>
+        <div class="subtitle">Articles from 1st January 2022 onwards</div>
+    </header>
+
+    <div id="error"></div>
+    <div id="loading">Loading, please wait.</div>
+    <ul id="articleList" class="article-list"></ul>
+    <button id="refreshButton" class="refresh-button">Refresh</button>
+
+    <script>
+        const errorElem = document.getElementById('error');
+        const loadingElem = document.getElementById('loading');
+        const articleListElem = document.getElementById('articleList');
+        const refreshButton = document.getElementById('refreshButton');
+
+        function formatDate(date) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(date).toLocaleDateString('en-US', options);
+        }
+
+        function showError(message) {
+            errorElem.style.display = 'block';
+            errorElem.textContent = message;
+            loadingElem.style.display = 'none';
+        }
+
+        async function fetchArticles() {
+            errorElem.style.display = 'none';
+            loadingElem.style.display = 'block';
+            articleListElem.innerHTML = '';
+
+            try {
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://mashable.com/feeds/rss/all');
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch articles');
+                }
+
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                const items = xmlDoc.getElementsByTagName('item');
+                const articles = [];
+
+                for (let item of items) {
+                    const title = item.getElementsByTagName('title')[0]?.textContent;
+                    const link = item.getElementsByTagName('link')[0]?.textContent;
+                    const pubDate = item.getElementsByTagName('pubDate')[0]?.textContent;
+                    const date = new Date(pubDate);
+
+                    if (date.getFullYear() >= 2022) {
+                        articles.push({
+                            title: title,
+                            link: link,
+                            date: date
+                        });
+                    }
+                }
+
+                articles.sort((a, b) => b.date - a.date);
+
+                articleListElem.innerHTML = articles.map(article => `
+                    <li class="article-item">
+                        <a href="${article.link}" class="article-link" target="_blank" rel="noopener noreferrer">
+                            ${article.title}
+                        </a>
+                        <div class="article-date">${formatDate(article.date)}</div>
+                    </li>
+                `).join('');
+
+                loadingElem.style.display = 'none';
+
+            } catch (error) {
+                showError('Failed to load articles. Please try again later.');
+                console.error('Error:', error);
+            }
+        }
+
+        refreshButton.addEventListener('click', fetchArticles);
+
+        fetchArticles();
+    </script>
+</body>
+</html>
